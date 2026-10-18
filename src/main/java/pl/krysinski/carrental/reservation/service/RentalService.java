@@ -1,6 +1,9 @@
 package pl.krysinski.carrental.reservation.service;
 
+import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Service;
 import pl.krysinski.carrental.fleet.FleetInventory;
+import pl.krysinski.carrental.reservation.dto.CreateReservationRequest;
 import pl.krysinski.carrental.reservation.entity.CarType;
 import pl.krysinski.carrental.reservation.entity.RentalPeriod;
 import pl.krysinski.carrental.reservation.entity.Reservation;
@@ -14,25 +17,21 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Service
+@AllArgsConstructor
 public class RentalService {
 
     private final ReservationRepository reservations;
     private final FleetInventory fleet;
     private final Clock clock;
 
-    // The clock's zone is the rental office's zone: requested start times are read in it.
-    public RentalService(ReservationRepository reservations, FleetInventory fleet, Clock clock) {
-        this.reservations = reservations;
-        this.fleet = fleet;
-        this.clock = clock;
-    }
-
-    public Reservation reserve(CarType carType, LocalDateTime start, int days, String customerId) {
-        RentalPeriod period = requestedPeriod(carType, start, days);
+    public Reservation reserve(CreateReservationRequest request) {
+        CarType carType = request.carType();
+        RentalPeriod period = requestedPeriod(carType, request.start(), request.days());
         if (freeCars(carType, period) < 1) {
             throw new NoAvailabilityException(carType, period);
         }
-        Reservation reservation = new Reservation(UUID.randomUUID(), carType, period, customerId);
+        Reservation reservation = new Reservation(UUID.randomUUID(), carType, period, request.customerId());
         reservations.save(reservation);
         return reservation;
     }
@@ -54,11 +53,11 @@ public class RentalService {
 
     private RentalPeriod requestedPeriod(CarType carType, LocalDateTime start, int days) {
         if (carType == null) {
-            throw new InvalidReservationException("Car type is required");
+            throw new InvalidReservationException("Car type is required");//todo validation
         }
         RentalPeriod period = RentalPeriod.of(start, days, clock.getZone());
         if (period.start().toInstant().isBefore(clock.instant())) {
-            throw new InvalidReservationException("Reservation cannot start in the past");
+            throw new InvalidReservationException("Reservation cannot start in the past");//todo validation
         }
         return period;
     }
