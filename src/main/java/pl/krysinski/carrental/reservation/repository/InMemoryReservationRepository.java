@@ -1,6 +1,5 @@
 package pl.krysinski.carrental.reservation.repository;
 
-import org.springframework.stereotype.Repository;
 import pl.krysinski.carrental.reservation.entity.CarType;
 import pl.krysinski.carrental.reservation.entity.Reservation;
 
@@ -10,7 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Repository
+//todo remove
 public class InMemoryReservationRepository implements ReservationRepository {
 
     private final Map<UUID, Reservation> reservations = new ConcurrentHashMap<>();
