@@ -1,4 +1,4 @@
-package pl.krysinski.carrental.reservation.service.mapper;
+package pl.krysinski.carrental.reservation.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

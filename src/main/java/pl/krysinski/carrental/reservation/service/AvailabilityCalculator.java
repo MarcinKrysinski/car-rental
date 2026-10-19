@@ -1,5 +1,6 @@
 package pl.krysinski.carrental.reservation.service;
 
+import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import pl.krysinski.carrental.reservation.entity.RentalPeriod;
 
@@ -9,7 +10,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AvailabilityCalculator {
 
     private record BookingEvent(Instant at, int delta) {

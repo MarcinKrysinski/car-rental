@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pl.krysinski.carrental.reservation.dto.AvailabilityResponse;
 import pl.krysinski.carrental.reservation.entity.CarType;
 import pl.krysinski.carrental.reservation.service.RentalService;
-import pl.krysinski.carrental.reservation.service.mapper.AvailabilityMapper;
+import pl.krysinski.carrental.reservation.mapper.AvailabilityMapper;
 
 import java.time.LocalDateTime;
 
