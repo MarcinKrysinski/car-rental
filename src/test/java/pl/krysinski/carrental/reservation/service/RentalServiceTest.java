@@ -1,49 +1,52 @@
 package pl.krysinski.carrental.reservation.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import pl.krysinski.carrental.fleet.FleetInventory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Transactional;
+import pl.krysinski.carrental.FixedClockConfig;
+import pl.krysinski.carrental.fleet.FleetEntity;
+import pl.krysinski.carrental.fleet.FleetRepository;
 import pl.krysinski.carrental.reservation.dto.CreateReservationRequest;
 import pl.krysinski.carrental.reservation.entity.CarType;
 import pl.krysinski.carrental.reservation.entity.Reservation;
 import pl.krysinski.carrental.reservation.exception.InvalidReservationException;
 import pl.krysinski.carrental.reservation.exception.NoAvailabilityException;
 import pl.krysinski.carrental.reservation.exception.ReservationNotFoundException;
-import pl.krysinski.carrental.reservation.repository.InMemoryReservationRepository;
 
-import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static pl.krysinski.carrental.FixedClockConfig.NOW;
 import static pl.krysinski.carrental.reservation.entity.CarType.SEDAN;
 import static pl.krysinski.carrental.reservation.entity.CarType.SUV;
 import static pl.krysinski.carrental.reservation.entity.CarType.VAN;
 
+// Against the real H2 database with "now" frozen at FixedClockConfig.NOW; every test is rolled back afterwards.
+@SpringBootTest
+@Import(FixedClockConfig.class)
+@Transactional
 class RentalServiceTest {
 
-    private static final ZoneId WARSAW = ZoneId.of("Europe/Warsaw");
-    private static final LocalDateTime NOW = LocalDateTime.of(2027, 6, 1, 8, 0);
     private static final Map<CarType, Integer> FLEET = Map.of(SEDAN, 2, SUV, 2, VAN, 1);
 
-    private final RentalService service = new RentalService(
-            new InMemoryReservationRepository(),
-            new FleetInventory() {
-                @Override
-                public int capacityOf(CarType carType) {
-                    return FLEET.get(carType);
-                }
+    @Autowired
+    private RentalService service;
 
-                @Override
-                public Map<CarType, Integer> capacities() {
-                    return FLEET;
-                }
-            },
-            Clock.fixed(NOW.atZone(WARSAW).toInstant(), WARSAW));
+    @Autowired
+    private FleetRepository fleetRepository;
+
+    @BeforeEach
+    void setUpFleet() {
+        FLEET.forEach((carType, capacity) -> fleetRepository.save(new FleetEntity(carType, capacity)));
+    }
 
     @ParameterizedTest
     @EnumSource(CarType.class)
