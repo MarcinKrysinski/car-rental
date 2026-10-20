@@ -30,7 +30,6 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
-    // Too many reservations for the same car type at once: the request waited LOCK_TIMEOUT for its turn.
     @ExceptionHandler(PessimisticLockingFailureException.class)
     public ResponseEntity<ProblemDetail> lockTimeout(PessimisticLockingFailureException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
