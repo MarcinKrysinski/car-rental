@@ -23,6 +23,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class RentalService {
 
+    public static final int MAX_MONTHS_AHEAD = 12;
+
     private final ReservationRepository reservations;
     private final FleetInventory fleet;
     private final ReservationMapper mapper;
@@ -62,6 +64,10 @@ public class RentalService {
     private RentalPeriod requestedPeriod(CarType carType, LocalDateTime start, int days) {
         if (carType == null) {
             throw new InvalidReservationException("Car type is required");//todo validation
+        }
+        if (start != null && start.isAfter(LocalDateTime.now(clock).plusMonths(MAX_MONTHS_AHEAD))) {
+            throw new InvalidReservationException(
+                    "Reservation can start at most " + MAX_MONTHS_AHEAD + " months ahead");//todo validation?
         }
         RentalPeriod period = RentalPeriod.of(start, days, clock.getZone());
         if (period.start().toInstant().isBefore(clock.instant())) {

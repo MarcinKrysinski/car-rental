@@ -1,5 +1,6 @@
 package pl.krysinski.carrental.reservation.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import pl.krysinski.carrental.reservation.exception.InvalidReservationException;
 import pl.krysinski.carrental.reservation.exception.NoAvailabilityException;
 import pl.krysinski.carrental.reservation.exception.ReservationNotFoundException;
 
+@Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -37,5 +39,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .header(HttpHeaders.RETRY_AFTER, "1")
                 .body(problem);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail unexpected(Exception e) {
+        log.error("Unexpected error", e);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error");
     }
 }
