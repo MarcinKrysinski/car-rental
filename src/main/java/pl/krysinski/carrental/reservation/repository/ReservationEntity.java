@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -16,11 +17,13 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "reservation")
+@Table(name = "reservation", indexes = @Index(columnList = "carType, startAt"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class ReservationEntity {
+
+    public static final int CUSTOMER_ID_LENGTH = 100;
 
     @Id
     private UUID id;
@@ -35,5 +38,6 @@ public class ReservationEntity {
     @Column(nullable = false)
     private Instant endAt;
 
+    @Column(length = CUSTOMER_ID_LENGTH)
     private String customerId;
 }

@@ -9,4 +9,6 @@ public interface FleetInventory {
     int capacityOf(CarType carType);
 
     Map<CarType, Integer> capacities();
+
+    int lockCapacity(CarType carType);
 }

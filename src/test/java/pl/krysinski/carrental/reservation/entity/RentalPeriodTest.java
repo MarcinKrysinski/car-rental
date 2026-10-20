@@ -68,6 +68,21 @@ class RentalPeriodTest {
                 .hasMessageContaining("at least one day");
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {RentalPeriod.MAX_DAYS + 1, Integer.MAX_VALUE})
+    void shouldRejectRentalLongerThanMaximum(int days) {
+        assertThatThrownBy(() -> RentalPeriod.of(LocalDateTime.of(2027, 6, 10, 10, 0), days, WARSAW))
+                .isInstanceOf(InvalidReservationException.class)
+                .hasMessageContaining("at most " + RentalPeriod.MAX_DAYS + " days");
+    }
+
+    @Test
+    void shouldAcceptRentalOfMaximumLength() {
+        RentalPeriod period = RentalPeriod.of(LocalDateTime.of(2027, 6, 10, 10, 0), RentalPeriod.MAX_DAYS, WARSAW);
+
+        assertThat(period.end().toLocalDate()).isEqualTo(period.start().toLocalDate().plusDays(RentalPeriod.MAX_DAYS));
+    }
+
     @Test
     void shouldRejectMissingStart() {
         assertThatThrownBy(() -> RentalPeriod.of(null, 3, WARSAW))

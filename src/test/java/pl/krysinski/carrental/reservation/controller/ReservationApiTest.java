@@ -3,24 +3,27 @@ package pl.krysinski.carrental.reservation.controller;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mapstruct.factory.Mappers;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import pl.krysinski.carrental.fleet.FleetController;
-import pl.krysinski.carrental.fleet.InMemoryFleetInventory;
-import pl.krysinski.carrental.reservation.mapper.AvailabilityMapper;
-import pl.krysinski.carrental.reservation.mapper.ReservationMapper;
-import pl.krysinski.carrental.reservation.repository.InMemoryReservationRepository;
-import pl.krysinski.carrental.reservation.service.RentalService;
+import org.springframework.transaction.annotation.Transactional;
+import pl.krysinski.carrental.FixedClockConfig;
+import pl.krysinski.carrental.fleet.FleetEntity;
+import pl.krysinski.carrental.fleet.FleetRepository;
+import pl.krysinski.carrental.reservation.entity.CarType;
+import pl.krysinski.carrental.reservation.repository.ReservationEntity;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static pl.krysinski.carrental.reservation.entity.CarType.SEDAN;
+import static pl.krysinski.carrental.reservation.entity.CarType.SUV;
+import static pl.krysinski.carrental.reservation.entity.CarType.VAN;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -28,27 +31,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// The HTTP layer on top of a real service, without a Spring context. Fleet: 3 sedans, 2 SUVs, 1 van.
+// The whole application over HTTP, against H2 with "now" frozen at 2027-06-01 08:00; every test is rolled back.
+// Fleet: 3 sedans, 2 SUVs, 1 van.
+@SpringBootTest
+@AutoConfigureMockMvc
+@Import(FixedClockConfig.class)
+@Transactional
 class ReservationApiTest {
 
-    private static final ZoneId WARSAW = ZoneId.of("Europe/Warsaw");
     private static final String RESERVATIONS = "/api/v1/reservations";
+    private static final Map<CarType, Integer> FLEET = Map.of(SEDAN, 3, SUV, 2, VAN, 1);
 
+    @Autowired
     private MockMvc mvc;
 
-    @BeforeEach
-    void setUp() {
-        InMemoryFleetInventory fleet = new InMemoryFleetInventory();
-        Clock clock = Clock.fixed(LocalDateTime.of(2027, 6, 1, 8, 0).atZone(WARSAW).toInstant(), WARSAW);
-        RentalService service = new RentalService(new InMemoryReservationRepository(), fleet, clock);
+    @Autowired
+    private FleetRepository fleetRepository;
 
-        mvc = MockMvcBuilders
-                .standaloneSetup(
-                        new ReservationController(service, Mappers.getMapper(ReservationMapper.class)),
-                        new AvailabilityController(service, Mappers.getMapper(AvailabilityMapper.class)),
-                        new FleetController(fleet))
-                .setControllerAdvice(new ApiExceptionHandler())
-                .build();
+    @BeforeEach
+    void setUpFleet() {
+        FLEET.forEach((carType, capacity) -> fleetRepository.save(new FleetEntity(carType, capacity)));
     }
 
     @Test
@@ -77,6 +79,24 @@ class ReservationApiTest {
         reserve("VAN", "2027-06-10T10:00:00", 0)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail", containsString("at least one day")));
+    }
+
+    @Test
+    void shouldAnswerBadRequestWhenRentalIsLongerThanMaximum() throws Exception {
+        reserve("VAN", "2027-06-10T10:00:00", Integer.MAX_VALUE)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail", containsString("at most")));
+    }
+
+    @Test
+    void shouldAnswerBadRequestWhenCustomerIdIsTooLong() throws Exception {
+        mvc.perform(post(RESERVATIONS).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"carType": "VAN", "start": "2027-06-10T10:00:00", "days": 2, "customerId": "%s"}
+                                """.formatted("x".repeat(ReservationEntity.CUSTOMER_ID_LENGTH + 1))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
     @Test
