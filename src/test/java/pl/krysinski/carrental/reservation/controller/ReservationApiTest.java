@@ -100,6 +100,21 @@ class ReservationApiTest {
     }
 
     @Test
+    void shouldAnswerBadRequestWhenStartIsBeyondBookingHorizon() throws Exception {
+        reserve("VAN", "+999999999-12-31T10:00:00", 2)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail", containsString("months ahead")));
+
+        mvc.perform(get("/api/v1/availability")
+                        .param("carType", "VAN")
+                        .param("start", "+999999999-12-31T10:00:00")
+                        .param("days", "2"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail", containsString("months ahead")));
+    }
+
+    @Test
     void shouldAnswerBadRequestWhenStartIsInThePast() throws Exception {
         reserve("VAN", "2027-05-31T10:00:00", 2)
                 .andExpect(status().isBadRequest())

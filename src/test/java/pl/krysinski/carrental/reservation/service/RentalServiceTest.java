@@ -148,6 +148,21 @@ class RentalServiceTest {
     }
 
     @Test
+    void shouldAcceptReservationStartingAtTheEndOfBookingHorizon() {
+        assertThat(reserve(SUV, NOW.plusMonths(RentalService.MAX_MONTHS_AHEAD), 1, null)).isNotNull();
+    }
+
+    @Test
+    void shouldRejectReservationStartingBeyondBookingHorizon() {
+        assertThatThrownBy(() -> reserve(SUV, NOW.plusMonths(RentalService.MAX_MONTHS_AHEAD).plusMinutes(1), 1, null))
+                .isInstanceOf(InvalidReservationException.class)
+                .hasMessageContaining("months ahead");
+        assertThatThrownBy(() -> reserve(SUV, LocalDateTime.MAX.withHour(10), 2, null))
+                .isInstanceOf(InvalidReservationException.class)
+                .hasMessageContaining("months ahead");
+    }
+
+    @Test
     void shouldRejectReservationShorterThanOneDay() {
         assertThatThrownBy(() -> reserve(SUV, june(10), 0, null))
                 .isInstanceOf(InvalidReservationException.class);
