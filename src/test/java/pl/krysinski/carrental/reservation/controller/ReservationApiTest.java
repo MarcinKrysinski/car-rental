@@ -13,8 +13,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 import pl.krysinski.carrental.FixedClockConfig;
 import pl.krysinski.carrental.reservation.validator.RentalRequestValidator;
-import pl.krysinski.carrental.fleet.FleetEntity;
-import pl.krysinski.carrental.fleet.FleetRepository;
+import pl.krysinski.carrental.fleet.repository.FleetEntity;
+import pl.krysinski.carrental.fleet.repository.FleetRepository;
 import pl.krysinski.carrental.reservation.entity.CarType;
 import pl.krysinski.carrental.reservation.repository.ReservationEntity;
 

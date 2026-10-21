@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car Rental</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --text: #1d2330; --muted: #6b7280; --border: #e3e6eb;
+    --accent: #2563eb; --accent-text: #fff; --ok: #15803d; --ok-bg: #e7f6ec; --err: #b91c1c; --err-bg: #fdecec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1b1f27; --text: #e6e8ec; --muted: #9aa1ad; --border: #2c323d;
+      --accent: #4f8bff; --ok: #4ade80; --ok-bg: #16301f; --err: #f87171; --err-bg: #3a1a1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
+  h1 { margin: 0; font-size: 24px; }
+  h2 { margin: 0 0 12px; font-size: 17px; }
+  .sub { color: var(--muted); margin: 4px 0 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .fleet { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+  .fleet div { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .fleet b { font-size: 22px; display: block; }
+  .fleet span { color: var(--muted); font-size: 13px; }
+  form { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: end; }
+  label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  input, select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; width: 100%; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; grid-column: 1 / -1; }
+  button { font: inherit; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.danger { color: var(--err); }
+  button:disabled { opacity: .5; cursor: default; }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 6px; display: none; white-space: pre-wrap; }
+  .msg.ok { display: block; background: var(--ok-bg); color: var(--ok); }
+  .msg.err { display: block; background: var(--err-bg); color: var(--err); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  td code { font-size: 12px; color: var(--muted); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row input { flex: 1; min-width: 220px; }
+  .empty { color: var(--muted); }
+  .scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🚗 Car Rental</h1>
+    <p class="sub">Prosty panel do testowania API jako użytkownik.</p>
+  </header>
+
+  <section class="card">
+    <h2>Flota</h2>
+    <div id="fleet" class="fleet"><span class="empty">Ładowanie…</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Nowa rezerwacja</h2>
+    <form id="form">
+      <label>Typ auta
+        <select name="carType" id="carType"></select>
+      </label>
+      <label>Początek
+        <input type="datetime-local" name="start" id="start" required>
+      </label>
+      <label>Liczba dni
+        <input type="number" name="days" id="days" min="1" value="3" required>
+      </label>
+      <label>ID klienta (opcjonalnie)
+        <input type="text" name="customerId" id="customerId" placeholder="np. jan.kowalski">
+      </label>
+      <div class="actions">
+        <button type="button" id="checkBtn">Sprawdź dostępność</button>
+        <button type="submit" class="primary">Zarezerwuj</button>
+      </div>
+    </form>
+    <div id="formMsg" class="msg"></div>
+  </section>
+
+  <section class="card">
+    <h2>Moje rezerwacje</h2>
+    <p class="sub" style="margin:-6px 0 12px">Zapamiętane w tej przeglądarce. Po restarcie aplikacji (baza H2 w pamięci) rezerwacje znikają.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Typ</th><th>Od</th><th>Do</th><th>Klient</th><th>ID</th><th></th></tr></thead>
+      <tbody id="list"></tbody>
+    </table></div>
+    <div id="listMsg" class="msg"></div>
+  </section>
+
+  <section class="card">
+    <h2>Znajdź rezerwację po ID</h2>
+    <div class="row">
+      <input id="lookupId" placeholder="UUID rezerwacji">
+      <button id="lookupBtn">Pokaż</button>
+    </div>
+    <div id="lookupMsg" class="msg"></div>
+  </section>
+</main>
+
+<script>
+const API = '/api/v1';
+const STORAGE_KEY = 'carRental.reservationIds';
+const $ = id => document.getElementById(id);
+
+function loadIds() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+function saveIds(ids) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(ids)); } catch {}
+}
+
+function show(el, text, ok) {
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (res.status === 204) return null;
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const detail = body?.detail || body?.title || res.statusText;
+    const err = new Error(`${res.status}: ${detail}`);
+    err.status = res.status;
+    throw err;
+  }
+  return body;
+}
+
+const fmt = s => s ? new Date(s).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+const withSeconds = v => v.length === 16 ? v + ':00' : v;
+
+function formData() {
+  return {
+    carType: $('carType').value,
+    start: withSeconds($('start').value),
+    days: Number($('days').value),
+    customerId: $('customerId').value.trim() || null,
+  };
+}
+
+async function loadFleet() {
+  try {
+    const fleet = await api('/fleet');
+    $('fleet').innerHTML = '';
+    $('carType').innerHTML = '';
+    for (const [type, capacity] of Object.entries(fleet)) {
+      $('fleet').insertAdjacentHTML('beforeend', `<div><span>${type}</span><b>${capacity}</b><span>aut w flocie</span></div>`);
+      $('carType').insertAdjacentHTML('beforeend', `<option>${type}</option>`);
+    }
+  } catch (e) {
+    $('fleet').innerHTML = `<span class="empty">Nie udało się pobrać floty (${e.message}).</span>`;
+  }
+}
+
+$('checkBtn').addEventListener('click', async () => {
+  const d = formData();
+  if (!d.start) return show($('formMsg'), 'Podaj datę początku.', false);
+  try {
+    const q = new URLSearchParams({ carType: d.carType, start: d.start, days: d.days });
+    const a = await api('/availability?' + q);
+    show($('formMsg'),
+      a.available
+        ? `✅ ${a.carType} dostępny: wolnych aut ${a.freeCars} (${fmt(a.start)} → ${fmt(a.end)})`
+        : `❌ Brak wolnych ${a.carType} w tym terminie (${fmt(a.start)} → ${fmt(a.end)})`,
+      a.available);
+  } catch (e) {
+    show($('formMsg'), e.message, false);
+  }
+});
+
+$('form').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  try {
+    const r = await api('/reservations', { method: 'POST', body: JSON.stringify(formData()) });
+    saveIds([r.id, ...loadIds()]);
+    show($('formMsg'), `✅ Zarezerwowano ${r.carType}: ${fmt(r.start)} → ${fmt(r.end)}\nID: ${r.id}`, true);
+    renderList();
+  } catch (e) {
+    show($('formMsg'), e.message, false);
+  }
+});
+
+async function renderList() {
+  const ids = loadIds();
+  const tbody = $('list');
+  if (!ids.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Brak rezerwacji.</td></tr>';
+    return;
+  }
+  const results = await Promise.all(ids.map(id => api('/reservations/' + id).catch(e => ({ id, missing: e.status === 404 }))));
+  // Forget reservations the server no longer knows (e.g. after a restart).
+  const alive = results.filter(r => !r.missing);
+  saveIds(alive.map(r => r.id));
+  tbody.innerHTML = alive.length ? '' : '<tr><td colspan="6" class="empty">Brak rezerwacji.</td></tr>';
+  for (const r of alive) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.carType ?? '?'}</td><td>${fmt(r.start)}</td><td>${fmt(r.end)}</td>
+      <td></td><td><code>${r.id}</code></td><td><button class="danger">Anuluj</button></td>`;
+    tr.children[3].textContent = r.customerId ?? '—';
+    tr.querySelector('button').addEventListener('click', () => cancel(r.id));
+    tbody.appendChild(tr);
+  }
+}
+
+async function cancel(id) {
+  if (!confirm('Anulować tę rezerwację?')) return;
+  try {
+    await api('/reservations/' + id, { method: 'DELETE' });
+    saveIds(loadIds().filter(x => x !== id));
+    show($('listMsg'), 'Rezerwacja anulowana.', true);
+  } catch (e) {
+    show($('listMsg'), e.message, false);
+  }
+  renderList();
+}
+
+$('lookupBtn').addEventListener('click', async () => {
+  const id = $('lookupId').value.trim();
+  if (!id) return;
+  try {
+    const r = await api('/reservations/' + encodeURIComponent(id));
+    show($('lookupMsg'), `${r.carType}: ${fmt(r.start)} → ${fmt(r.end)}\nKlient: ${r.customerId ?? '—'}`, true);
+  } catch (e) {
+    show($('lookupMsg'), e.message, false);
+  }
+});
+
+// Default start: tomorrow at 10:00 local time.
+const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(10, 0, 0, 0);
+const pad = n => String(n).padStart(2, '0');
+$('start').value = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:00`;
+
+loadFleet();
+renderList();
+</script>
+</body>
+</html>

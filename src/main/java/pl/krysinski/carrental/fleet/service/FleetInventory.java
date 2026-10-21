@@ -1,4 +1,4 @@
-package pl.krysinski.carrental.fleet;
+package pl.krysinski.carrental.fleet.service;
 
 import pl.krysinski.carrental.reservation.entity.CarType;
 

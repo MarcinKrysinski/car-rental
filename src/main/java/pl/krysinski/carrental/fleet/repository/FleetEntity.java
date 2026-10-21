@@ -1,4 +1,4 @@
-package pl.krysinski.carrental.fleet;
+package pl.krysinski.carrental.fleet.repository;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

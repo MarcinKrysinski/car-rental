@@ -68,12 +68,24 @@ class ReservationRepositoryTest {
     }
 
     @Test
-    void shouldReportHowManyReservationsWereDeleted() {
+    void shouldKeepSoftDeletedReservationButHideItFromLookups() {
+        Reservation reservation = save(CarType.SUV, LocalDateTime.of(2027, 6, 10, 10, 0), 3);
+
+        assertThat(repository.markCancelled(reservation.id())).isEqualTo(1);
+
+        assertThat(repository.findById(reservation.id()))
+                .hasValueSatisfying(entity -> assertThat(entity.isDeleted()).isTrue());
+        assertThat(repository.findByIdAndDeletedFalse(reservation.id())).isEmpty();
+        assertThat(findOverlappingSuvs(LocalDateTime.of(2027, 6, 10, 10, 0), 3)).isEmpty();
+    }
+
+    @Test
+    void shouldReportWhetherReservationWasSoftDeleted() {
         Reservation reservation = save(CarType.SEDAN, LocalDateTime.of(2027, 6, 10, 10, 0), 1);
 
-        assertThat(repository.deleteReservation(reservation.id())).isEqualTo(1);
-        assertThat(repository.findById(reservation.id())).isEmpty();
-        assertThat(repository.deleteReservation(reservation.id())).isZero();
+        assertThat(repository.markCancelled(reservation.id())).isEqualTo(1);
+        assertThat(repository.markCancelled(reservation.id())).isZero();
+        assertThat(repository.markCancelled(UUID.randomUUID())).isZero();
     }
 
     private Reservation save(CarType carType, LocalDateTime start, int days) {

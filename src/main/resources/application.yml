@@ -6,7 +6,6 @@ spring:
     url: jdbc:h2:mem:carrental;LOCK_TIMEOUT=10000
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # Flyway owns the schema (src/main/resources/db/migration); Hibernate only checks it matches.
+      ddl-auto: validate
     open-in-view: false
-    # initial fleet
-    defer-datasource-initialization: true
