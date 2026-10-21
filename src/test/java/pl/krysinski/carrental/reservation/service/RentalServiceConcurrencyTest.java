@@ -5,8 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import pl.krysinski.carrental.fleet.FleetEntity;
-import pl.krysinski.carrental.fleet.FleetRepository;
+import pl.krysinski.carrental.fleet.repository.FleetEntity;
+import pl.krysinski.carrental.fleet.repository.FleetRepository;
 import pl.krysinski.carrental.reservation.dto.CreateReservationRequest;
 import pl.krysinski.carrental.reservation.exception.NoAvailabilityException;
 import pl.krysinski.carrental.reservation.exception.ReservationNotFoundException;
@@ -136,6 +136,9 @@ class RentalServiceConcurrencyTest {
 
         assertThat(cancelled).hasValue(1);
         assertThat(notFound).hasValue(CUSTOMERS - 1);
-        assertThat(reservations.count()).isZero();
+        // Soft delete: the row stays, only flagged as deleted.
+        assertThat(reservations.findById(id))
+                .hasValueSatisfying(entity -> assertThat(entity.isDeleted()).isTrue());
+        assertThat(reservations.findByIdAndDeletedFalse(id)).isEmpty();
     }
 }

@@ -1,15 +1,17 @@
-package pl.krysinski.carrental.fleet;
+package pl.krysinski.carrental.fleet.service;
 
 import lombok.AllArgsConstructor;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import pl.krysinski.carrental.fleet.repository.FleetEntity;
+import pl.krysinski.carrental.fleet.repository.FleetRepository;
 import pl.krysinski.carrental.reservation.entity.CarType;
 
 import java.util.EnumMap;
 import java.util.Map;
 
-@Component
+@Service
 @AllArgsConstructor
-public class JpaFleetInventory implements FleetInventory {
+public class FleetInventoryService implements FleetInventory {
 
     private final FleetRepository fleetRepository;
 

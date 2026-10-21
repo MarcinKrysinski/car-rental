@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import pl.krysinski.carrental.FixedClockConfig;
-import pl.krysinski.carrental.fleet.FleetRepository;
+import pl.krysinski.carrental.fleet.repository.FleetRepository;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;

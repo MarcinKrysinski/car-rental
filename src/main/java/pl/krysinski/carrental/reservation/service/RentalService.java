@@ -3,7 +3,7 @@ package pl.krysinski.carrental.reservation.service;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pl.krysinski.carrental.fleet.FleetInventory;
+import pl.krysinski.carrental.fleet.service.FleetInventory;
 import pl.krysinski.carrental.reservation.dto.AvailabilityRequest;
 import pl.krysinski.carrental.reservation.dto.CreateReservationRequest;
 import pl.krysinski.carrental.reservation.dto.RentalRequest;
@@ -47,13 +47,13 @@ public class RentalService {
 
     @Transactional
     public void cancel(UUID id) {
-        if (reservations.deleteReservation(id) == 0) {
+        if (reservations.delete(id) == 0) {
             throw new ReservationNotFoundException(id);
         }
     }
 
     public Reservation find(UUID id) {
-        return reservations.findById(id)
+        return reservations.findByIdAndDeletedFalse(id)
                 .map(entity -> mapper.toReservation(entity, clock.getZone()))
                 .orElseThrow(() -> new ReservationNotFoundException(id));
     }

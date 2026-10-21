@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+import pl.krysinski.carrental.fleet.repository.FleetEntity;
+import pl.krysinski.carrental.fleet.service.FleetInventory;
+import pl.krysinski.carrental.fleet.repository.FleetRepository;
+import pl.krysinski.carrental.fleet.service.FleetInventoryService;
 import pl.krysinski.carrental.reservation.entity.CarType;
 
 import java.util.Map;
@@ -13,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // Against the real H2 database; every test is rolled back afterwards.
 @SpringBootTest
 @Transactional
-class JpaFleetInventoryTest {
+class FleetInventoryServiceTest {
 
     @Autowired
     private FleetInventory fleetInventory;
@@ -23,7 +27,7 @@ class JpaFleetInventoryTest {
 
     @Test
     void shouldUseDatabaseFleetInTheApplication() {
-        assertThat(fleetInventory).isInstanceOf(JpaFleetInventory.class);
+        assertThat(fleetInventory).isInstanceOf(FleetInventoryService.class);
     }
 
     @Test

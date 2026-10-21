@@ -21,6 +21,7 @@ public interface ReservationMapper {
 
     @Mapping(target = "startAt", source = "period.start")
     @Mapping(target = "endAt", source = "period.end")
+    @Mapping(target = "deleted", constant = "false")
     ReservationEntity toEntity(Reservation reservation);
 
     default Reservation toReservation(ReservationEntity entity, ZoneId zone) {
