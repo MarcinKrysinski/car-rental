@@ -28,5 +28,5 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update ReservationEntity r set r.deleted = true where r.id = :id and r.deleted = false")
-    int delete(@Param("id") UUID id);
+    int markCancelled(@Param("id") UUID id);
 }

@@ -47,7 +47,7 @@ public class RentalService {
 
     @Transactional
     public void cancel(UUID id) {
-        if (reservations.delete(id) == 0) {
+        if (reservations.markCancelled(id) == 0) {
             throw new ReservationNotFoundException(id);
         }
     }
