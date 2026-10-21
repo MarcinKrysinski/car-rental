@@ -12,6 +12,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import pl.krysinski.carrental.reservation.exception.InvalidReservationException;
 import pl.krysinski.carrental.reservation.exception.NoAvailabilityException;
 import pl.krysinski.carrental.reservation.exception.ReservationNotFoundException;
+import pl.krysinski.carrental.validation.RequestValidationException;
 
 @Slf4j
 @RestControllerAdvice
@@ -20,6 +21,18 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidReservationException.class)
     public ProblemDetail invalidReservation(InvalidReservationException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(RequestValidationException.class)
+    public ProblemDetail requestValidation(RequestValidationException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setProperty("errors", e.getErrors().getFieldErrors().stream()
+                .map(error -> new FieldViolation(error.getField(), error.getCode(), error.getDefaultMessage()))
+                .toList());
+        return problem;
+    }
+
+    record FieldViolation(String field, String code, String message) {
     }
 
     @ExceptionHandler(ReservationNotFoundException.class)

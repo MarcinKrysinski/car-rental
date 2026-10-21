@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pl.krysinski.carrental.FixedClockConfig;
 import pl.krysinski.carrental.fleet.FleetEntity;
 import pl.krysinski.carrental.fleet.FleetRepository;
+import pl.krysinski.carrental.reservation.dto.AvailabilityRequest;
 import pl.krysinski.carrental.reservation.dto.CreateReservationRequest;
 import pl.krysinski.carrental.reservation.entity.CarType;
 import pl.krysinski.carrental.reservation.entity.Reservation;
@@ -123,21 +124,28 @@ class RentalServiceTest {
 
     @Test
     void shouldReportHowManyCarsAreStillFreeForPeriod() {
-        assertThat(service.availability(SUV, june(10), 3).freeCars()).isEqualTo(2);
+        assertThat(availability(june(10), 3).freeCars()).isEqualTo(2);
 
         reserve(SUV, june(10), 3, null);
-        assertThat(service.availability(SUV, june(11), 1).freeCars()).isEqualTo(1);
-        assertThat(service.availability(SUV, june(11), 1).available()).isTrue();
+        assertThat(availability(june(11), 1).freeCars()).isEqualTo(1);
+        assertThat(availability(june(11), 1).available()).isTrue();
 
         reserve(SUV, june(10), 3, null);
-        assertThat(service.availability(SUV, june(11), 1).freeCars()).isZero();
-        assertThat(service.availability(SUV, june(11), 1).available()).isFalse();
-        assertThat(service.availability(SUV, june(13), 1).freeCars()).isEqualTo(2);
+        assertThat(availability(june(11), 1).freeCars()).isZero();
+        assertThat(availability(june(11), 1).available()).isFalse();
+        assertThat(availability(june(13), 1).freeCars()).isEqualTo(2);
     }
 
     @Test
     void shouldRejectReservationStartingInThePast() {
         assertThatThrownBy(() -> reserve(SUV, NOW.minusMinutes(1), 3, null))
+                .isInstanceOf(InvalidReservationException.class)
+                .hasMessageContaining("past");
+    }
+
+    @Test
+    void shouldRejectAvailabilityCheckStartingInThePast() {
+        assertThatThrownBy(() -> availability(NOW.minusMinutes(1), 3))
                 .isInstanceOf(InvalidReservationException.class)
                 .hasMessageContaining("past");
     }
@@ -163,17 +171,23 @@ class RentalServiceTest {
     }
 
     @Test
-    void shouldRejectReservationShorterThanOneDay() {
-        assertThatThrownBy(() -> reserve(SUV, june(10), 0, null))
+    void shouldRejectMissingValuesWithoutTouchingTheFleet() {
+        // Callers other than the API skip its validators; this must still be a bad request, not a 409 or an NPE.
+        assertThatThrownBy(() -> reserve(null, june(10), 3, null))
+                .isInstanceOf(InvalidReservationException.class)
+                .hasMessageContaining("Car type");
+        assertThatThrownBy(() -> service.reserve(new CreateReservationRequest(SUV, june(10), null, null)))
+                .isInstanceOf(InvalidReservationException.class)
+                .hasMessageContaining("days");
+        assertThatThrownBy(() -> service.availability(new AvailabilityRequest(null, june(10), 3)))
+                .isInstanceOf(InvalidReservationException.class)
+                .hasMessageContaining("Car type");
+        assertThatThrownBy(() -> reserve(SUV, null, 3, null))
                 .isInstanceOf(InvalidReservationException.class);
     }
 
-    @Test
-    void shouldRejectReservationWithoutCarTypeOrStart() {
-        assertThatThrownBy(() -> reserve(null, june(10), 3, null))
-                .isInstanceOf(InvalidReservationException.class);
-        assertThatThrownBy(() -> reserve(SUV, null, 3, null))
-                .isInstanceOf(InvalidReservationException.class);
+    private Availability availability(LocalDateTime start, int days) {
+        return service.availability(new AvailabilityRequest(SUV, start, days));
     }
 
     private Reservation reserve(CarType carType, LocalDateTime start, int days, String customerId) {
