@@ -4,7 +4,9 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.krysinski.carrental.fleet.FleetInventory;
+import pl.krysinski.carrental.reservation.dto.AvailabilityRequest;
 import pl.krysinski.carrental.reservation.dto.CreateReservationRequest;
+import pl.krysinski.carrental.reservation.dto.RentalRequest;
 import pl.krysinski.carrental.reservation.entity.CarType;
 import pl.krysinski.carrental.reservation.entity.RentalPeriod;
 import pl.krysinski.carrental.reservation.entity.Reservation;
@@ -33,7 +35,7 @@ public class RentalService {
     @Transactional
     public Reservation reserve(CreateReservationRequest request) {
         CarType carType = request.carType();
-        RentalPeriod period = requestedPeriod(carType, request.start(), request.days());
+        RentalPeriod period = requestedPeriod(request);
         int capacity = fleet.lockCapacity(carType);
         if (freeCars(capacity, carType, period) < 1) {
             throw new NoAvailabilityException(carType, period);
@@ -56,22 +58,31 @@ public class RentalService {
                 .orElseThrow(() -> new ReservationNotFoundException(id));
     }
 
-    public Availability availability(CarType carType, LocalDateTime start, int days) {
-        RentalPeriod period = requestedPeriod(carType, start, days);
+    public Availability availability(AvailabilityRequest request) {
+        CarType carType = request.carType();
+        RentalPeriod period = requestedPeriod(request);
         return new Availability(carType, period, freeCars(fleet.capacityOf(carType), carType, period));
     }
 
-    private RentalPeriod requestedPeriod(CarType carType, LocalDateTime start, int days) {
-        if (carType == null) {
-            throw new InvalidReservationException("Car type is required");//todo validation
+
+    private RentalPeriod requestedPeriod(RentalRequest request) {
+        if (request.carType() == null) {
+            throw new InvalidReservationException("Car type is required");
         }
-        if (start != null && start.isAfter(LocalDateTime.now(clock).plusMonths(MAX_MONTHS_AHEAD))) {
+        if (request.days() == null) {
+            throw new InvalidReservationException("Rental length in days is required");
+        }
+        LocalDateTime start = request.start();
+        if (start == null) {
+            throw new InvalidReservationException("Start date and time are required");
+        }
+        if (start.isAfter(LocalDateTime.now(clock).plusMonths(MAX_MONTHS_AHEAD))) {
             throw new InvalidReservationException(
-                    "Reservation can start at most " + MAX_MONTHS_AHEAD + " months ahead");//todo validation?
+                    "Reservation can start at most " + MAX_MONTHS_AHEAD + " months ahead");
         }
-        RentalPeriod period = RentalPeriod.of(start, days, clock.getZone());
+        RentalPeriod period = RentalPeriod.of(start, request.days(), clock.getZone());
         if (period.start().toInstant().isBefore(clock.instant())) {
-            throw new InvalidReservationException("Reservation cannot start in the past");//todo validation
+            throw new InvalidReservationException("Reservation cannot start in the past");
         }
         return period;
     }

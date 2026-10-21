@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 import pl.krysinski.carrental.FixedClockConfig;
+import pl.krysinski.carrental.reservation.validator.RentalRequestValidator;
 import pl.krysinski.carrental.fleet.FleetEntity;
 import pl.krysinski.carrental.fleet.FleetRepository;
 import pl.krysinski.carrental.reservation.entity.CarType;
@@ -78,7 +79,9 @@ class ReservationApiTest {
     void shouldAnswerBadRequestWhenRentalIsShorterThanOneDay() throws Exception {
         reserve("VAN", "2027-06-10T10:00:00", 0)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("at least one day")));
+                .andExpect(jsonPath("$.errors[0].field").value("days"))
+                .andExpect(jsonPath("$.errors[0].code").value("TOO_SMALL"))
+                .andExpect(jsonPath("$.errors[0].message").value("days must be at least 1"));
     }
 
     @Test
@@ -86,7 +89,9 @@ class ReservationApiTest {
         reserve("VAN", "2027-06-10T10:00:00", Integer.MAX_VALUE)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.detail", containsString("at most")));
+                .andExpect(jsonPath("$.errors[0].field").value("days"))
+                .andExpect(jsonPath("$.errors[0].code").value("TOO_LARGE"))
+                .andExpect(jsonPath("$.errors[0].message").value("days can be at most " + RentalRequestValidator.MAX_DAYS));
     }
 
     @Test
@@ -131,8 +136,51 @@ class ReservationApiTest {
     }
 
     @Test
+    void shouldListEveryInvalidFieldWithItsCode() throws Exception {
+        mvc.perform(post(RESERVATIONS).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"start": "2027-06-10T10:00:00", "customerId": "%s"}
+                                """.formatted("x".repeat(ReservationEntity.CUSTOMER_ID_LENGTH + 1))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors.length()").value(3))
+                .andExpect(jsonPath("$.errors[0].field").value("carType"))
+                .andExpect(jsonPath("$.errors[0].code").value("REQUIRED"))
+                .andExpect(jsonPath("$.errors[0].message").value("carType is required"))
+                .andExpect(jsonPath("$.errors[1].field").value("days"))
+                .andExpect(jsonPath("$.errors[1].code").value("REQUIRED"))
+                .andExpect(jsonPath("$.errors[2].field").value("customerId"))
+                .andExpect(jsonPath("$.errors[2].code").value("TOO_LONG"));
+    }
+
+    @Test
     void shouldAnswerBadRequestWhenCarTypeIsUnknown() throws Exception {
         reserve("TRUCK", "2027-06-10T10:00:00", 2)
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldAnswerBadRequestWithErrorsWhenAvailabilityParamsAreMissingOrInvalid() throws Exception {
+        mvc.perform(get("/api/v1/availability").param("start", "2027-06-10T10:00:00"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors.length()").value(2))
+                .andExpect(jsonPath("$.errors[0].field").value("carType"))
+                .andExpect(jsonPath("$.errors[0].code").value("REQUIRED"))
+                .andExpect(jsonPath("$.errors[1].field").value("days"))
+                .andExpect(jsonPath("$.errors[1].code").value("REQUIRED"));
+
+        mvc.perform(get("/api/v1/availability")
+                        .param("carType", "VAN")
+                        .param("start", "2027-05-31T10:00:00")
+                        .param("days", "2"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail", containsString("past")));
+
+        mvc.perform(get("/api/v1/availability")
+                        .param("carType", "TRUCK")
+                        .param("start", "2027-06-10T10:00:00")
+                        .param("days", "2"))
                 .andExpect(status().isBadRequest());
     }
 

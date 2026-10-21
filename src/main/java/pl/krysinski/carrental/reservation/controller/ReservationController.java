@@ -1,6 +1,5 @@
 package pl.krysinski.carrental.reservation.controller;
 
-import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +15,7 @@ import pl.krysinski.carrental.reservation.dto.ReservationResponse;
 import pl.krysinski.carrental.reservation.entity.Reservation;
 import pl.krysinski.carrental.reservation.service.RentalService;
 import pl.krysinski.carrental.reservation.mapper.ReservationMapper;
+import pl.krysinski.carrental.reservation.validator.CreateReservationRequestValidator;
 
 import java.util.UUID;
 
@@ -26,9 +26,11 @@ public class ReservationController {
 
     private final RentalService rentalService;
     private final ReservationMapper reservationMapper;
+    private final CreateReservationRequestValidator createReservationRequestValidator;
 
     @PostMapping
-    public ResponseEntity<ReservationResponse> create(@Valid @RequestBody CreateReservationRequest request) {
+    public ResponseEntity<ReservationResponse> create(@RequestBody CreateReservationRequest request) {
+        createReservationRequestValidator.validate(request);
         Reservation reserve = rentalService.reserve(request);
         return new ResponseEntity<>(reservationMapper.toResponse(reserve), HttpStatus.CREATED);
     }

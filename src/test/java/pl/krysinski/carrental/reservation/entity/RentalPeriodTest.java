@@ -1,16 +1,12 @@
 package pl.krysinski.carrental.reservation.entity;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import pl.krysinski.carrental.reservation.exception.InvalidReservationException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RentalPeriodTest {
 
@@ -58,44 +54,5 @@ class RentalPeriodTest {
 
         assertThat(period.end().toLocalDateTime()).isEqualTo(LocalDateTime.of(2027, 11, 1, 10, 0));
         assertThat(Duration.between(period.start(), period.end())).isEqualTo(Duration.ofHours(49));
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {0, -1, -30})
-    void shouldRejectRentalShorterThanOneDay(int days) {
-        assertThatThrownBy(() -> RentalPeriod.of(LocalDateTime.of(2027, 6, 10, 10, 0), days, WARSAW))
-                .isInstanceOf(InvalidReservationException.class)
-                .hasMessageContaining("at least one day");
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {RentalPeriod.MAX_DAYS + 1, Integer.MAX_VALUE})
-    void shouldRejectRentalLongerThanMaximum(int days) {
-        assertThatThrownBy(() -> RentalPeriod.of(LocalDateTime.of(2027, 6, 10, 10, 0), days, WARSAW))
-                .isInstanceOf(InvalidReservationException.class)
-                .hasMessageContaining("at most " + RentalPeriod.MAX_DAYS + " days");
-    }
-
-    @Test
-    void shouldAcceptRentalOfMaximumLength() {
-        RentalPeriod period = RentalPeriod.of(LocalDateTime.of(2027, 6, 10, 10, 0), RentalPeriod.MAX_DAYS, WARSAW);
-
-        assertThat(period.end().toLocalDate()).isEqualTo(period.start().toLocalDate().plusDays(RentalPeriod.MAX_DAYS));
-    }
-
-    @Test
-    void shouldRejectMissingStart() {
-        assertThatThrownBy(() -> RentalPeriod.of(null, 3, WARSAW))
-                .isInstanceOf(InvalidReservationException.class);
-    }
-
-    @Test
-    void shouldRejectPeriodThatDoesNotEndAfterItStarts() {
-        var start = LocalDateTime.of(2027, 6, 10, 10, 0).atZone(WARSAW);
-
-        assertThatThrownBy(() -> new RentalPeriod(start, start))
-                .isInstanceOf(InvalidReservationException.class);
-        assertThatThrownBy(() -> new RentalPeriod(start, start.minusDays(1)))
-                .isInstanceOf(InvalidReservationException.class);
     }
 }
